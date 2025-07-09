@@ -21,8 +21,154 @@ import argparse
 import logging
 import subprocess
 import tempfile
+import time
+from dataclasses import dataclass
+from typing import List, Optional
 
 from jinja2 import Template
+
+
+@dataclass
+class SlurmStep:
+    """Represents a step in the interactive workflow."""
+
+    job_id: str
+    description: str
+    command: Optional[tuple[str, ...]] = None
+    print_command: bool = False
+
+    def describe(self) -> str:
+        logging.info(self.description)
+        if self.print_command and self.command:
+            logging.info(f"    {' '.join(self.command)}")
+
+    def execute(self) -> None:
+        if self.command:
+            result = subprocess.run(
+                self.command, capture_output=True, text=True, check=True
+            )
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
+            logging.info(f"stdout: {stdout}")
+            logging.info(f"stderr: {stderr}")
+        else:
+            logging.info("Nothing to execute.")
+
+
+class WaitForAllocation(SlurmStep):
+    """Wait for the nodes to be allocated."""
+
+    wait_time: int = 10  # seconds
+
+    def execute(self) -> None:
+        while True:
+            result = subprocess.run(
+                ["squeue", "-j", self.job_id, "-h", "-o", "%t"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            output_lines = result.stdout.strip().split("\n")
+            if len(output_lines) < 1:
+                raise RuntimeError("No output from squeue. Exiting.")
+            elif output_lines[0] == "R":
+                logging.info("Nodes allocated. Exiting.")
+                break
+            elif output_lines[0].startswith("P"):
+                logging.info("Waiting for nodes to be allocated...")
+            elif output_lines[0].startswith("C"):
+                raise RuntimeError("Job was cancelled")
+            else:
+                raise RuntimeError(f"Unknown state: {output_lines[0]}")
+            time.sleep(self.wait_time)
+
+
+class WaitForSetup(SlurmStep):
+    """Wait for the setup to complete and for GPUs to be idle."""
+
+    def execute(self) -> None:
+        logging.info("Waiting for setup to complete and for GPUs to be idle...")
+        logging.info("Not implemented yet.")
+
+
+@dataclass
+class SlurmConfig:
+    """Configuration class for SLURM job management."""
+
+    job_id: str
+    timeout: int = 3600  # seconds # TODO
+
+    def create_execution_steps(self) -> List[SlurmStep]:
+        """Create the sequence of SLURM steps for the interactive workflow."""
+        return [
+            WaitForAllocation(
+                job_id=self.job_id,
+                description="1. Wait for the nodes to be allocated",
+            ),
+            WaitForSetup(
+                job_id=self.job_id,
+                description="2. Wait for setup to complete and for GPUs to be idle",
+            ),
+            SlurmStep(
+                job_id=self.job_id,
+                description="3. Run warmup on the prefill host:",
+                command=(
+                    "srun",
+                    "--jobid",
+                    self.job_id,
+                    "--overlap",
+                    "bash",
+                    "utils/bench.sh",
+                    "$PREFILL_HOST_IP",
+                    "--type",
+                    "warmup",
+                ),
+                print_command=True,
+            ),
+        ]
+
+    def create_cleanup_steps(self) -> List[SlurmStep]:
+        """Create the cleanup steps for the interactive workflow."""
+        return [
+            SlurmStep(
+                job_id=self.job_id,
+                description="Cancel the job:",
+                command=("scancel", self.job_id),
+                print_command=True,
+            ),
+        ]
+
+    def execute_interactive_workflow(self) -> None:
+        """Execute the complete interactive workflow."""
+        logging.info("Entering interactive mode")
+        logging.info("If the connection is lost, make sure to cancel the job manually:")
+        logging.info(f"    scancel {self.job_id}")
+
+        steps = self.create_execution_steps()
+        cleanup_steps = self.create_cleanup_steps()
+
+        try:
+            logging.info("--------------------------------")
+            logging.info("The following steps will be executed:")
+            for step in steps:
+                step.describe()
+            logging.info("The following steps will be executed when the job is done:")
+            for step in cleanup_steps:
+                step.describe()
+            logging.info("--------------------------------")
+
+            for step in steps:
+                step.execute()
+        except Exception as e:
+            logging.error(f"Error executing step: {e}")
+            raise
+        finally:
+            logging.info("--------------------------------")
+            logging.info("Running cleanup steps:")
+            for step in cleanup_steps:
+                step.execute()
+            logging.info("--------------------------------")
+            logging.info("Interactive mode completed")
 
 
 def setup_logging(level: int = logging.INFO) -> None:
@@ -109,6 +255,12 @@ def _parse_command_line_args(args: list[str] | None = None) -> argparse.Namespac
         default=False,
         help="Use SGLang commands instead of Dynamo",
     )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        default=False,
+        help="Run the job interactively",
+    )
     return parser.parse_args(args)
 
 
@@ -137,6 +289,13 @@ def main(input_args: list[str] | None = None):
         generate_job_script(args.template, temp_file.name, **template_vars)
         job_id = submit_job(temp_file.name)
         logging.info(f"Job logs will be available in: logs/{job_id}/")
+
+    if args.interactive:
+        slurm_config = SlurmConfig(
+            job_id=job_id,
+        )
+
+        slurm_config.execute_interactive_workflow()
 
 
 if __name__ == "__main__":

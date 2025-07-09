@@ -383,7 +383,7 @@ def main(input_args: list[str] | None = None):
             args.use_sglang_commands,
             args.gpu_type,
         )
-    else:
+    elif args.worker_type == "decode":
         setup_decode_node(
             args.rank,
             args.decode_host_ip,
@@ -393,6 +393,8 @@ def main(input_args: list[str] | None = None):
             args.use_sglang_commands,
             args.gpu_type,
         )
+    else:
+        raise NotImplementedError(f"Invalid worker type: {args.worker_type}")
 
     logging.info(f"{args.worker_type.capitalize()} node setup complete")
 
