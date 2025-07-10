@@ -75,17 +75,14 @@ if [ "$mode" = "prefill" ]; then
     elif [ "$cmd" = "sglang" ]; then
         # GB200 sglang prefill command
         SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=2048 \
-        NCCL_MNNVL_ENABLE=1 \
-        NCCL_CUMEM_ENABLE=1 \
-        SGLANG_USE_MESSAGE_QUEUE_BROADCASTER=0 \
-        SGL_DISABLE_TP_MEMORY_INBALANCE_CHECK=1 \
-        PYTHONUNBUFFERED=1 \
+        SGLANG_MOONCAKE_ALLOCATOR_SO_PATH=/configs/hook.so \
+        SGLANG_MOONCAKE_CUSTOM_POOL=True \
         python3 -m sglang.launch_server \
             --served-model-name deepseek-ai/DeepSeek-R1 \
             --model-path /model/ \
             --trust-remote-code \
             --disaggregation-mode prefill \
-            --disaggregation-transfer-backend nixl \
+            --disaggregation-transfer-backend mooncake \
             --dist-init-addr "$HOST_IP:$PORT" \
             --nnodes "$TOTAL_NODES" \
             --node-rank "$RANK" \
@@ -120,10 +117,12 @@ elif [ "$mode" = "decode" ]; then
         # GB200 sglang decode command
         SGLANG_DEEPEP_NUM_MAX_DISPATCH_TOKENS_PER_RANK=768 \
         SGLANG_NUM_RESERVED_DECODE_TOKENS=176 \
+        SGLANG_MOONCAKE_ALLOCATOR_SO_PATH=/configs/hook.so \
+        SGLANG_MOONCAKE_CUSTOM_POOL=True \
         python3 -m sglang.launch_server \
             --model-path /model/ \
             --trust-remote-code \
-            --disaggregation-transfer-backend nixl \
+            --disaggregation-transfer-backend mooncake \
             --disaggregation-mode decode \
             --dist-init-addr "$HOST_IP:$PORT" \
             --nnodes "$TOTAL_NODES" \
