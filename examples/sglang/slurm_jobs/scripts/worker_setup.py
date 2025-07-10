@@ -279,7 +279,7 @@ def setup_head_prefill_node(prefill_host_ip: str) -> None:
         raise RuntimeError("Failed to start ingress")
 
     logging.info(
-        f"Starting http server on port 9001for flush_cache endpoint on node {prefill_host_ip}"
+        f"Starting http server on port 9001 for flush_cache endpoint on node {prefill_host_ip}"
     )
     cache_flush_server_cmd = "python3 utils/sgl_http_server.py --ns dynamo"
     cache_flush_server_process = run_command(cache_flush_server_cmd, background=True)
