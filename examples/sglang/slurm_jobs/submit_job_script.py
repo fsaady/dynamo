@@ -445,7 +445,10 @@ def main(input_args: list[str] | None = None):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".sh") as temp_file:
         generate_job_script(args.template, temp_file.name, **template_vars)
         job_id = submit_job(temp_file.name)
-        logging.info(f"Job logs will be available in: logs/{job_id}/")
+        logger.info(f"Job logs will be available in: logs/{job_id}/")
+        logger.info("To cancel the job, run:")
+        logger.info(f"    scancel {job_id}")
+        logger.info("")
 
     if args.interactive:
         WaitForAllocation(
