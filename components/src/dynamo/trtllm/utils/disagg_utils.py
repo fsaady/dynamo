@@ -20,6 +20,10 @@ from tensorrt_llm.executor.result import Logprob
 from tensorrt_llm.llmapi import DisaggregatedParams
 
 
+def get_disagg_node_id(worker_id: int, node_id_modulus: int) -> int:
+    return int(worker_id) % node_id_modulus
+
+
 class DisaggregatedParamsCodec:
     """
     Codec for encoding and decoding disaggregated params for network transfer.
