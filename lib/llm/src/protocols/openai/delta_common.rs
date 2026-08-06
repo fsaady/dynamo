@@ -24,6 +24,8 @@ pub struct DeltaGeneratorOptions {
     pub enable_logprobs: bool,
     /// When true, logprob token fields use "token_id:<id>" format instead of decoded text.
     pub return_tokens_as_token_ids: bool,
+    /// Controls whether prompt cached-token details are returned in usage.
+    pub return_cached_tokens_details: Option<bool>,
     /// Determines which nvext response fields may be emitted for this request.
     pub response_fields: NvExtResponseFieldSelection,
 }
@@ -32,6 +34,7 @@ impl DeltaGeneratorOptions {
     pub fn new(
         stream_options: Option<&ChatCompletionStreamOptions>,
         return_tokens_as_token_ids: Option<bool>,
+        return_cached_tokens_details: Option<bool>,
         enable_logprobs: bool,
         nvext: Option<&NvExt>,
     ) -> Self {
@@ -42,6 +45,7 @@ impl DeltaGeneratorOptions {
             enable_logprobs,
             response_fields,
             return_tokens_as_token_ids: return_tokens_as_token_ids.unwrap_or(false),
+            return_cached_tokens_details,
         }
     }
 }

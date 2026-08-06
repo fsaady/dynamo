@@ -117,6 +117,7 @@ async fn main_loop(
             thinking: None,
             media_io_kwargs: None,
             return_tokens_as_token_ids: None,
+            return_cached_tokens_details: None,
             unsupported_fields: Default::default(),
         };
 

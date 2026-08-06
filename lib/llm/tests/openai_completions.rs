@@ -30,6 +30,7 @@ impl CompletionSample {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            return_cached_tokens_details: None,
             unsupported_fields: Default::default(),
         };
 

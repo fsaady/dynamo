@@ -122,6 +122,10 @@ pub struct NvCreateChatCompletionRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub return_tokens_as_token_ids: Option<bool>,
 
+    /// When false, omit prompt cached-token details from the usage response.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub return_cached_tokens_details: Option<bool>,
+
     /// Catch-all for unsupported fields - checked during validation
     #[serde(flatten, default, skip_serializing)]
     pub unsupported_fields: std::collections::HashMap<String, serde_json::Value>,

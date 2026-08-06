@@ -29,6 +29,7 @@ impl NvCreateCompletionRequest {
         let options = DeltaGeneratorOptions::new(
             self.inner.stream_options.as_ref(),
             self.return_tokens_as_token_ids,
+            self.return_cached_tokens_details,
             self.inner.logprobs.is_some(),
             self.nvext(),
         );
@@ -193,6 +194,9 @@ impl DeltaGenerator {
     pub fn get_usage(&self) -> dynamo_protocols::types::CompletionUsage {
         let mut usage = self.usage.clone();
         usage.total_tokens = usage.prompt_tokens.saturating_add(usage.completion_tokens);
+        if self.options.return_cached_tokens_details == Some(false) {
+            usage.prompt_tokens_details = None;
+        }
         usage
     }
 }
@@ -327,7 +331,9 @@ mod tests {
     use super::*;
     use crate::protocols::common::{self, llm_backend::BackendOutput, timing::WORKER_TYPE_PREFILL};
     use crate::protocols::openai::DeltaGeneratorExt;
-    use dynamo_protocols::types::{CreateCompletionRequestArgs, Prompt};
+    use dynamo_protocols::types::{
+        CompletionUsage, CreateCompletionRequestArgs, Prompt, PromptTokensDetails,
+    };
 
     fn create_test_request() -> NvCreateCompletionRequest {
         let inner = CreateCompletionRequestArgs::default()
@@ -342,6 +348,7 @@ mod tests {
             nvext: None,
             metadata: None,
             return_tokens_as_token_ids: None,
+            return_cached_tokens_details: None,
             unsupported_fields: Default::default(),
         }
     }
@@ -377,6 +384,31 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_prompt_token_details_can_be_suppressed() {
+        let mut request = create_test_request();
+        request.return_cached_tokens_details = Some(false);
+        let mut generator = request.response_generator("req-cached-details".to_string());
+
+        let mut backend_output = final_backend_output();
+        backend_output.completion_usage = Some(CompletionUsage {
+            prompt_tokens: 5,
+            completion_tokens: 1,
+            total_tokens: 6,
+            prompt_tokens_details: Some(PromptTokensDetails {
+                cached_tokens: Some(3),
+                ..Default::default()
+            }),
+            completion_tokens_details: None,
+        });
+
+        generator
+            .choice_from_postprocessor(backend_output)
+            .expect("choice generation");
+
+        assert_eq!(generator.get_usage().prompt_tokens_details, None);
+    }
+
     fn create_test_request_with_extra_fields(fields: Vec<String>) -> NvCreateCompletionRequest {
         let inner = CreateCompletionRequestArgs::default()
             .model("test-model")
@@ -395,6 +427,7 @@ mod tests {
             ),
             metadata: None,
             return_tokens_as_token_ids: None,
+            return_cached_tokens_details: None,
             unsupported_fields: Default::default(),
         }
     }

@@ -30,6 +30,7 @@ impl NvCreateChatCompletionRequest {
         let options = DeltaGeneratorOptions::new(
             self.inner.stream_options.as_ref(),
             self.return_tokens_as_token_ids,
+            self.return_cached_tokens_details,
             enable_logprobs,
             self.nvext(),
         );
@@ -231,6 +232,9 @@ impl DeltaGenerator {
     pub fn get_usage(&self) -> dynamo_protocols::types::CompletionUsage {
         let mut usage = self.usage.clone();
         usage.total_tokens = usage.prompt_tokens.saturating_add(usage.completion_tokens);
+        if self.options.return_cached_tokens_details == Some(false) {
+            usage.prompt_tokens_details = None;
+        }
         usage
     }
 }
@@ -387,7 +391,7 @@ mod tests {
     use dynamo_protocols::types::{
         ChatCompletionRequestMessage, ChatCompletionRequestUserMessage,
         ChatCompletionRequestUserMessageContent, CompletionTokensDetails, CompletionUsage,
-        CreateChatCompletionRequest,
+        CreateChatCompletionRequest, PromptTokensDetails,
     };
 
     fn create_test_request() -> NvCreateChatCompletionRequest {
@@ -412,6 +416,7 @@ mod tests {
             thinking: None,
             media_io_kwargs: None,
             return_tokens_as_token_ids: None,
+            return_cached_tokens_details: None,
             unsupported_fields: Default::default(),
         }
     }
@@ -512,6 +517,31 @@ mod tests {
         assert_eq!(completion_details.reasoning_tokens, Some(3));
     }
 
+    #[test]
+    fn test_prompt_token_details_can_be_suppressed() {
+        let mut request = create_test_request();
+        request.return_cached_tokens_details = Some(false);
+        let mut generator = request.response_generator("req-cached-details".to_string());
+
+        let mut backend_output = final_backend_output();
+        backend_output.completion_usage = Some(CompletionUsage {
+            prompt_tokens: 5,
+            completion_tokens: 1,
+            total_tokens: 6,
+            prompt_tokens_details: Some(PromptTokensDetails {
+                cached_tokens: Some(3),
+                ..Default::default()
+            }),
+            completion_tokens_details: None,
+        });
+
+        generator
+            .choice_from_postprocessor(backend_output)
+            .expect("choice generation");
+
+        assert_eq!(generator.get_usage().prompt_tokens_details, None);
+    }
+
     fn create_test_request_with_extra_fields(fields: Vec<String>) -> NvCreateChatCompletionRequest {
         let messages = vec![ChatCompletionRequestMessage::User(
             ChatCompletionRequestUserMessage {
@@ -539,6 +569,7 @@ mod tests {
             thinking: None,
             media_io_kwargs: None,
             return_tokens_as_token_ids: None,
+            return_cached_tokens_details: None,
             unsupported_fields: Default::default(),
         }
     }
