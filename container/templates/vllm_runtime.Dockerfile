@@ -265,6 +265,19 @@ RUN set -eux; \
     fi; \
     rm -rf /var/lib/apt/lists/*
 
+{% if platform in ("arm64", "multi") %}
+# vLLM arm64 nightlies may ask Torch Inductor to emit ARMv9/SVE2 host kernels.
+# Jammy's default GCC 11 rejects those -march flags; use Clang for runtime JIT.
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        clang-14 \
+        libomp-14-dev; \
+    rm -rf /var/lib/apt/lists/*
+ENV CC=clang-14 \
+    CXX=clang++-14
+{% endif %}
+
 # Regression guard for the codec purge above: torch.inductor/Triton JIT shell
 # out to a host C/C++ compiler at runtime, so a missing toolchain only surfaces
 # on the first compile in production. Reproduce that compile path at build time
