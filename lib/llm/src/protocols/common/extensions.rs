@@ -158,6 +158,15 @@ pub struct NvExt {
     #[builder(default, setter(strip_option))]
     pub cache_salt: Option<String>,
 
+    /// Responses API client request ID captured from the top-level wire field.
+    ///
+    /// This is internal request metadata, not an `nvext` wire property.  It is
+    /// retained while a Responses request is converted through the common
+    /// Chat-Completions pipeline, then used as the Responses object ID.
+    #[serde(skip)]
+    #[builder(default, setter(strip_option))]
+    pub responses_request_id: Option<String>,
+
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[builder(default, setter(strip_option))]
     pub extra_fields: Option<Vec<String>>,

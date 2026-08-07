@@ -37,15 +37,14 @@ use super::chat_completions::{NvCreateChatCompletionRequest, NvCreateChatComplet
 use super::{OpenAISamplingOptionsProvider, OpenAIStopConditionsProvider};
 use crate::protocols::common::extensions::{NvExt, NvExtProvider};
 
-/// Request body for `POST /v1/responses`. Uses a plain
-/// `#[derive(Deserialize)]` — the relaxed input shapes are handled by
-/// Dynamo-owning the input chain in `dynamo_protocols::types::responses`,
-/// not by a custom pre-parse JSON patcher.
-/// An earlier iteration of this type carried a hand-written `impl Deserialize`
-/// that walked `serde_json::Value` to inject synthetic defaults for missing
-/// `id` / `status` / `annotations`; that was replaced by typed ownership for
-/// correctness and to avoid the double-deserialize cost.
-#[derive(ToSchema, Serialize, Deserialize, Validate, Debug, Clone)]
+/// Request body for `POST /v1/responses`.
+///
+/// The owned `dynamo_protocols::types::responses` input chain handles the
+/// relaxed response input shapes clients emit.  The small custom deserializer
+/// below only captures Dynamo-owned top-level compatibility fields that the
+/// upstream request type intentionally does not model; it remains entirely
+/// typed and does not use a JSON-value pre-parse pass.
+#[derive(ToSchema, Serialize, Validate, Debug, Clone)]
 pub struct NvCreateResponse {
     /// Flattened CreateResponse fields (model, input, temperature, etc.).
     ///
@@ -63,6 +62,55 @@ pub struct NvCreateResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schema(value_type = Object)]
     pub nvext: Option<NvExt>,
+}
+
+impl<'de> Deserialize<'de> for NvCreateResponse {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct WireRequest {
+            #[serde(flatten)]
+            inner: dynamo_protocols::types::responses::CreateResponse,
+            #[serde(default)]
+            nvext: Option<NvExt>,
+            /// Legacy top-level prefix-cache isolation salt.
+            ///
+            /// The Responses schema does not own this Dynamo extension, so it
+            /// must be captured here rather than silently ignored by the
+            /// flattened upstream request type.
+            #[serde(default)]
+            cache_salt: Option<String>,
+            /// Caller-provided Responses object ID.
+            #[serde(default)]
+            request_id: Option<String>,
+        }
+
+        let WireRequest {
+            inner,
+            mut nvext,
+            cache_salt,
+            request_id,
+        } = WireRequest::deserialize(deserializer)?;
+
+        if let Some(cache_salt) = cache_salt
+            && nvext
+                .as_ref()
+                .and_then(|extension| extension.cache_salt.as_deref())
+                .is_none_or(str::is_empty)
+        {
+            nvext.get_or_insert_with(Default::default).cache_salt = Some(cache_salt);
+        }
+
+        if let Some(request_id) = request_id {
+            nvext
+                .get_or_insert_with(Default::default)
+                .responses_request_id = Some(request_id);
+        }
+
+        Ok(Self { inner, nvext })
+    }
 }
 
 #[derive(ToSchema, Deserialize, Validate, Debug, Clone)]
@@ -896,6 +944,8 @@ fn strip_tool_call_text(text: &str) -> std::borrow::Cow<'_, str> {
 /// response objects reflect actual request values.
 #[derive(Clone, Debug, Default)]
 pub struct ResponseParams {
+    /// Optional caller-supplied Responses object ID.
+    pub request_id: Option<String>,
     pub model: Option<String>,
     pub temperature: Option<f32>,
     pub top_p: Option<f32>,
@@ -994,7 +1044,10 @@ pub fn chat_completion_to_response(
     let nvext = nv_resp.nvext.clone();
     let chat_resp = nv_resp.inner;
     let message_id = format!("msg_{}", Uuid::new_v4().simple());
-    let response_id = format!("resp_{}", Uuid::new_v4().simple());
+    let response_id = params
+        .request_id
+        .clone()
+        .unwrap_or_else(|| format!("resp_{}", Uuid::new_v4().simple()));
 
     let choice = chat_resp.choices.into_iter().next();
     let mut output = Vec::new();
@@ -1227,6 +1280,88 @@ mod tests {
                 ..Default::default()
             }),
         }
+    }
+
+    #[test]
+    fn test_top_level_cache_salt_is_preserved_for_chat_conversion() {
+        let request: NvCreateResponse = serde_json::from_value(serde_json::json!({
+            "model": "test-model",
+            "input": "hello",
+            "cache_salt": "tenant-a"
+        }))
+        .expect("deserialize response request");
+
+        let chat_request = NvCreateChatCompletionRequest::try_from(request)
+            .expect("convert response request");
+        assert_eq!(
+            chat_request
+                .nvext
+                .as_ref()
+                .and_then(|extension| extension.cache_salt.as_deref()),
+            Some("tenant-a")
+        );
+    }
+
+    #[test]
+    fn test_top_level_cache_salt_requires_a_string() {
+        let error = serde_json::from_value::<NvCreateResponse>(serde_json::json!({
+            "model": "test-model",
+            "input": "hello",
+            "cache_salt": 6195633
+        }))
+        .expect_err("integer cache_salt must be rejected");
+
+        assert!(error.to_string().contains("cache_salt"));
+    }
+
+    #[test]
+    fn test_top_level_request_id_is_retained_for_response_creation() {
+        let request: NvCreateResponse = serde_json::from_value(serde_json::json!({
+            "model": "test-model",
+            "input": "hello",
+            "request_id": "resp_client_supplied"
+        }))
+        .expect("deserialize response request");
+
+        let params = ResponseParams {
+            request_id: request
+                .nvext
+                .as_ref()
+                .and_then(|extension| extension.responses_request_id.clone()),
+            ..Default::default()
+        };
+        let response = chat_completion_to_response(
+            NvCreateChatCompletionResponse {
+                inner: dynamo_protocols::types::CreateChatCompletionResponse {
+                    choices: vec![],
+                    created: 0,
+                    id: "chat-id".into(),
+                    model: "test-model".into(),
+                    service_tier: None,
+                    system_fingerprint: None,
+                    object: "chat.completion".into(),
+                    usage: None,
+                },
+                nvext: None,
+            },
+            &params,
+            None,
+        )
+        .expect("convert response");
+
+        assert_eq!(response.inner.id, "resp_client_supplied");
+    }
+
+    #[test]
+    fn test_top_level_request_id_requires_a_string() {
+        let error = serde_json::from_value::<NvCreateResponse>(serde_json::json!({
+            "model": "test-model",
+            "input": "hello",
+            "request_id": 6195649
+        }))
+        .expect_err("integer request_id must be rejected");
+
+        assert!(error.to_string().contains("request_id"));
     }
 
     #[test]

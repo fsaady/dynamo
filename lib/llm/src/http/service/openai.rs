@@ -48,7 +48,7 @@ use super::{
 use crate::engines::ValidateRequest;
 use crate::preprocessor::PRESERVE_OMITTED_MAX_TOKENS_CONTEXT_KEY;
 use crate::protocols::common::extensions::{
-    AGENT_CONTEXT_CONTEXT_KEY, AgentContext, SESSION_AFFINITY_CONTEXT_KEY, SessionAffinityId,
+    AGENT_CONTEXT_CONTEXT_KEY, AgentContext, NvExt, SESSION_AFFINITY_CONTEXT_KEY, SessionAffinityId,
     agent_context_from_headers, apply_header_routing_overrides, session_affinity_from_headers,
 };
 use crate::protocols::openai::chat_completions::aggregator::ChatCompletionAggregator;
@@ -2318,8 +2318,10 @@ pub fn validate_completion_fields_generic(
 async fn handler_responses(
     State((state, template)): State<(Arc<service_v2::State>, Option<RequestTemplate>)>,
     headers: HeaderMap,
-    Json(mut request): Json<NvCreateResponse>,
+    body: Bytes,
 ) -> Result<Response, ErrorResponse> {
+    ensure_json_content_type(&headers)?;
+    let mut request: NvCreateResponse = parse_json_request("responses", &body)?;
     // return a 503 if the service or model is not ready.
     // Resolve the templated model first so empty/missing `model` fields
     // don't bypass the gate.
@@ -2332,11 +2334,25 @@ async fn handler_responses(
         check_model_serving_ready(&state, resolved_model)?;
     }
 
+    let (cache_salt, responses_request_id) = request
+        .nvext
+        .as_ref()
+        .map(|extension| {
+            (
+                extension.cache_salt.clone(),
+                extension.responses_request_id.clone(),
+            )
+        })
+        .unwrap_or_default();
     request.nvext = if state.nvext_enabled() {
         apply_header_routing_overrides(request.nvext.take(), &headers)
     } else {
         warn_nvext_disabled("responses", request.nvext.is_some(), &headers);
-        None
+        (cache_salt.is_some() || responses_request_id.is_some()).then(|| NvExt {
+            cache_salt,
+            responses_request_id,
+            ..Default::default()
+        })
     };
 
     // create the context for the request
@@ -2448,6 +2464,10 @@ async fn responses(
     // Extract request parameters before into_parts() consumes the request.
     // These are echoed back in the Response object per the OpenAI spec.
     let response_params = ResponseParams {
+        request_id: request
+            .nvext
+            .as_ref()
+            .and_then(|extension| extension.responses_request_id.clone()),
         model: request.inner.model.clone(),
         temperature: request.inner.temperature,
         top_p: request.inner.top_p,

@@ -95,7 +95,10 @@ impl ResponseStreamConverter {
             .as_secs();
 
         Self {
-            response_id: format!("resp_{}", Uuid::new_v4().simple()),
+            response_id: params
+                .request_id
+                .clone()
+                .unwrap_or_else(|| format!("resp_{}", Uuid::new_v4().simple())),
             model,
             params,
             api_context: None,
@@ -2056,6 +2059,18 @@ mod tests {
 
         let response = conv.make_response(Status::Completed, vec![]);
         assert_eq!(response.previous_response_id, None);
+    }
+
+    #[test]
+    fn test_stream_response_uses_request_id_when_provided() {
+        let params = ResponseParams {
+            request_id: Some("resp_client_supplied".to_string()),
+            ..Default::default()
+        };
+        let conv = ResponseStreamConverter::new("test-model".into(), params);
+
+        let response = conv.make_response(Status::Completed, vec![]);
+        assert_eq!(response.id, "resp_client_supplied");
     }
 
     #[test]
