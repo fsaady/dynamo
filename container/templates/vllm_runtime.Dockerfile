@@ -268,14 +268,26 @@ RUN set -eux; \
 {% if platform in ("arm64", "multi") %}
 # vLLM arm64 nightlies may ask Torch Inductor to emit ARMv9/SVE2 host kernels.
 # Jammy's default GCC 11 rejects those -march flags; use Clang for runtime JIT.
+# A multi-platform Dockerfile executes this stage once per target architecture,
+# so select the compiler at build time instead of installing Clang on amd64.
+# clang-14 pulls in 32-bit runtime packages on amd64; those are unnecessary
+# there because the upstream GCC toolchain handles the x86 JIT path.
+ARG TARGETARCH
 RUN set -eux; \
-    apt-get update; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-        clang-14 \
-        libomp-14-dev; \
-    rm -rf /var/lib/apt/lists/*
-ENV CC=clang-14 \
-    CXX=clang++-14
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        apt-get update; \
+        DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            clang-14 \
+            libomp-14-dev; \
+        rm -rf /var/lib/apt/lists/*; \
+        ln -sf /usr/bin/clang-14 /usr/local/bin/dynamo-cc; \
+        ln -sf /usr/bin/clang++-14 /usr/local/bin/dynamo-cxx; \
+    else \
+        ln -sf /usr/bin/gcc /usr/local/bin/dynamo-cc; \
+        ln -sf /usr/bin/g++ /usr/local/bin/dynamo-cxx; \
+    fi
+ENV CC=/usr/local/bin/dynamo-cc \
+    CXX=/usr/local/bin/dynamo-cxx
 {% endif %}
 
 # Regression guard for the codec purge above: torch.inductor/Triton JIT shell
