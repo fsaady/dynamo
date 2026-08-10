@@ -14,14 +14,15 @@ from .common import check_module_available
 
 HAS_VLLM = check_module_available("vllm.entrypoints.openai.chat_completion.protocol")
 if HAS_VLLM:
-    from mistral_common.tokens.tokenizers.base import SpecialTokens
     from vllm.entrypoints.openai.chat_completion.protocol import (
         ChatCompletionRequest,
         ChatCompletionToolsParam,
     )
     from vllm.entrypoints.openai.engine.protocol import FunctionDefinition
     from vllm.outputs import CompletionOutput
-    from vllm.reasoning.mistral_reasoning_parser import MistralReasoningParser
+    from vllm.reasoning.mistral_reasoning_parser import (
+        MistralParserReasoningAdapter,
+    )
     from vllm.sampling_params import SamplingParams
     from vllm.tokenizers.mistral import MistralTokenizer
     from vllm.tool_parsers.mistral_tool_parser import MistralToolParser
@@ -53,30 +54,6 @@ pytestmark = [
 TOOL_CALLS_TOKEN_ID = 9
 EOS_TOKEN_ID = 2
 BOS_TOKEN_ID = 1
-# Arbitrary IDs for think tokens (not present in this test's output, but
-# needed to initialise MistralReasoningParser).
-THINK_START_TOKEN_ID = 7
-THINK_END_TOKEN_ID = 8
-
-
-class _InnerTokenizer:
-    """Mimics the inner ``tokenizer.tokenizer`` accessed by MistralReasoningParser."""
-
-    def get_special_token(self, token):
-        # vLLM 0.17.0 renamed get_control_token -> get_special_token
-        return self._token_lookup(token)
-
-    def get_control_token(self, token):
-        # kept for older vLLM compat
-        return self._token_lookup(token)
-
-    def _token_lookup(self, token):
-        return {
-            SpecialTokens.begin_think: THINK_START_TOKEN_ID,
-            SpecialTokens.end_think: THINK_END_TOKEN_ID,
-        }.get(token)
-
-
 class MockMistralTokenizer(MistralTokenizer):
     """Lightweight MistralTokenizer subclass for testing.
 
@@ -90,16 +67,19 @@ class MockMistralTokenizer(MistralTokenizer):
     def __init__(self):
         self.version = 11
         self._vocab_dict = {"[TOOL_CALLS]": TOOL_CALLS_TOKEN_ID}
-        self.tokenizer = _InnerTokenizer()
         self._special_tokens = ["[TOOL_CALLS]"]
-
-    def __bool__(self):
-        # Needed because MistralReasoningParser does ``if not self.model_tokenizer``
-        # which triggers __len__ → vocab_size on the real MistralTokenizer.
-        return True
 
     def get_vocab(self):
         return dict(self._vocab_dict)
+
+    def decode(self, ids, skip_special_tokens=False):
+        """Decode the tool marker for vLLM's engine-based parser scanner."""
+        if isinstance(ids, int):
+            ids = [ids]
+        return "".join(
+            "[TOOL_CALLS]" if token_id == TOOL_CALLS_TOKEN_ID else ""
+            for token_id in ids
+        )
 
     @property
     def all_special_tokens(self):
@@ -497,7 +477,7 @@ def processor(tokenizer, request_for_sampling, sampling_params):
         sampling_params=sampling_params,
         prompt_token_ids=PROMPT_TOKEN_IDS,
         tool_parser=tool_parser,
-        reasoning_parser_class=MistralReasoningParser,
+        reasoning_parser_class=MistralParserReasoningAdapter,
         chat_template_kwargs={"reasoning_effort": None},
     )
 
@@ -623,7 +603,7 @@ def test_mistral_tool_call_interval_20(
         sampling_params=sampling_params,
         prompt_token_ids=PROMPT_TOKEN_IDS,
         tool_parser=tool_parser,
-        reasoning_parser_class=MistralReasoningParser,
+        reasoning_parser_class=MistralParserReasoningAdapter,
         chat_template_kwargs={"reasoning_effort": None},
     )
 
