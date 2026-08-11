@@ -51,7 +51,7 @@ export NAMESPACE=your-namespace
 # Replace your-storage-class-name in model-cache/model-cache.yaml first.
 kubectl apply -n "${NAMESPACE}" -f model-cache/model-cache.yaml
 kubectl apply -n "${NAMESPACE}" -f model-cache/model-download.yaml
-kubectl wait -n "${NAMESPACE}" --for=condition=Complete job/model-download --timeout=14400s
+kubectl wait -n "${NAMESPACE}" --for=condition=Complete job/model-download --timeout=3600s
 ```
 
 Deploy a recipe:
