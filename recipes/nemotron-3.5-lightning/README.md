@@ -48,9 +48,10 @@ Create the shared model cache and populate it with the target and draft models:
 
 ```bash
 export NAMESPACE=your-namespace
+# Replace your-storage-class-name in model-cache/model-cache.yaml first.
 kubectl apply -n "${NAMESPACE}" -f model-cache/model-cache.yaml
 kubectl apply -n "${NAMESPACE}" -f model-cache/model-download.yaml
-kubectl wait -n "${NAMESPACE}" --for=condition=Complete job/model-download --timeout=3600s
+kubectl wait -n "${NAMESPACE}" --for=condition=Complete job/model-download --timeout=14400s
 ```
 
 Deploy a recipe:
@@ -58,6 +59,7 @@ Deploy a recipe:
 ```bash
 RECIPE=vllm/agg-b200-dspark
 kubectl apply -n "${NAMESPACE}" -f "${RECIPE}/deploy.yaml"
+kubectl get dgd -n "${NAMESPACE}" vllm-agg-b200-dspark -w
 ```
 
 Port-forward the frontend service and send a chat request:
