@@ -67,7 +67,7 @@ more GPUs.
    `EFA_INSTALLER_SHA256` to pin and verify the installer archive.
 
 ```bash
-kubectl exec -n "${NAMESPACE}" <h100-worker-pod> -- \
+kubectl exec -i -n "${NAMESPACE}" <h100-worker-pod> -- \
   bash -s -- check < check-efa-userspace.sh
 ```
 
