@@ -18,7 +18,7 @@ hardware and speculative decoding combinations.
 | H100 | `agg-h100-{mtp,dflash,dspark}` | `disagg-h100-{mtp,dflash,dspark}` | AWS EFA / Libfabric |
 | H200 | `agg-h200-{mtp,dflash,dspark}` | `disagg-h200-{mtp,dflash,dspark}` | UCX over IB/RDMA |
 | B200 | `agg-b200-{mtp,dflash,dspark}` | `disagg-b200-dspark` | UCX over IB/RDMA |
-| GB200 | `agg-gb200-{mtp,dflash,dspark}` | `disagg-gb200-{dflash,dspark}` | UCX |
+| GB200 | `agg-gb200-{mtp,dflash,dspark}` | `disagg-gb200-{dflash,dspark}` | UCX/NIXL, cluster-specific fabric resources |
 
 Each recipe identifier corresponds to `identifier/deploy.yaml` in this directory.
 

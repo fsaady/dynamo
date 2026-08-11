@@ -82,7 +82,7 @@ This recipe deploys `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`, a 30B 
 <span><b>Checkpoint</b> nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4</span>
 <span><b>GPUs</b> 2x GB200</span>
 <span><b>Runtime</b> vLLM, 1 prefill + 1 decode</span>
-<span><b>Transport</b> IB/RDMA with UCX starting point</span>
+<span><b>Transport</b> UCX/NIXL with cluster-specific fabric resources</span>
 <span><b>Spec decode</b> DFlash or DSpark</span>
 </div>
 <div className="dynamo-target-picker-summary" data-sku="b200" data-variant="trtllm-agg">
@@ -134,6 +134,12 @@ This recipe deploys `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`, a 30B 
 
 </div>
 
+<div data-sku="gb200" data-variant="vllm-disagg">
+
+- GB200 disaggregated manifests leave fabric resources cluster-specific. Add the UCX/NIXL resource claims or network resources required by your platform.
+
+</div>
+
 Create the namespace and Hugging Face token secret:
 
 ```bash
@@ -145,7 +151,7 @@ kubectl create secret generic hf-token-secret \
 ```
 
 <Warning>
-Edit storage class, image pull secret names, node selectors, RDMA resources, and cluster-specific placement before applying these manifests.
+Edit storage class, image pull secret names, node selectors, fabric resources, and cluster-specific placement before applying these manifests.
 </Warning>
 
 ## Deploy
@@ -223,7 +229,7 @@ kubectl apply -f recipes/nemotron-3.5-lightning/vllm/disagg-h100-dflash/deploy.y
 kubectl get dgd vllm-disagg-h100-dflash -n ${NAMESPACE} -w
 ```
 
-DFlash has the highest tok/s/user among the H100 disaggregated rows in the source inventory. Use `disagg-h100-mtp` or `disagg-h100-dspark` to compare the other speculative decoding modes.
+DFlash has the highest tok/s/user among the H100 disaggregated rows in the source inventory; DSpark has the highest output tok/s/GPU. Use `disagg-h100-mtp` or `disagg-h100-dspark` to compare the other speculative decoding modes.
 
 </div>
 
