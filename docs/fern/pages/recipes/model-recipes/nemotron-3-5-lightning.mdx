@@ -125,6 +125,7 @@ This recipe deploys `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4`, a 30B 
 <div data-sku="h100" data-variant="vllm-disagg">
 
 - AWS EFA/LIBFABRIC resources exposed as `vpc.amazonaws.com/efa` for the H100 disaggregated manifests.
+- AWS EFA userspace available in the runtime image or installed by your cluster bootstrap flow before pod startup. The manifests do not download or install EFA packages. Use the [EFA check helper](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/vllm/check-efa-userspace.sh) to validate a prepared image or running pod; its install mode requires a pinned `EFA_INSTALLER_VERSION` and `EFA_INSTALLER_SHA256`.
 
 </div>
 
@@ -225,11 +226,11 @@ Use this target for B200 disaggregated vLLM validation with DSpark speculative d
 <div data-sku="h100" data-variant="vllm-disagg">
 
 ```bash
-kubectl apply -f recipes/nemotron-3.5-lightning/vllm/disagg-h100-dflash/deploy.yaml -n ${NAMESPACE}
-kubectl get dgd vllm-disagg-h100-dflash -n ${NAMESPACE} -w
+kubectl apply -f recipes/nemotron-3.5-lightning/vllm/disagg-h100-dspark/deploy.yaml -n ${NAMESPACE}
+kubectl get dgd vllm-disagg-h100-dspark -n ${NAMESPACE} -w
 ```
 
-DFlash has the highest tok/s/user among the H100 disaggregated rows in the source inventory; DSpark has the highest output tok/s/GPU. Use `disagg-h100-mtp` or `disagg-h100-dspark` to compare the other speculative decoding modes.
+DSpark is the highest-output-throughput H100 disaggregated row in the source inventory. Use `disagg-h100-dflash` or `disagg-h100-mtp` to compare the other speculative decoding modes.
 
 </div>
 
@@ -346,7 +347,7 @@ kubectl port-forward svc/vllm-disagg-b200-dspark-frontend 8000:8000 -n ${NAMESPA
 <div data-sku="h100" data-variant="vllm-disagg">
 
 ```bash
-kubectl port-forward svc/vllm-disagg-h100-dflash-frontend 8000:8000 -n ${NAMESPACE}
+kubectl port-forward svc/vllm-disagg-h100-dspark-frontend 8000:8000 -n ${NAMESPACE}
 ```
 
 </div>
@@ -521,8 +522,8 @@ aiperf profile \
   --use-server-token-count \
   --extra-inputs ignore_eos:true \
   --request-timeout-seconds 1200 \
-  --url http://vllm-disagg-h100-dflash-frontend:8000 \
-  --concurrency 12
+  --url http://vllm-disagg-h100-dspark-frontend:8000 \
+  --concurrency 24
 ```
 
 </div>
@@ -624,7 +625,7 @@ TensorRT-LLM rows are experimental smoke or inventory results in the source READ
 <tr data-sku="h200" data-variant="agg"><td>vLLM</td><td>Aggregated</td><td>H200</td><td>MTP, DFlash, DSpark</td><td><code>vllm/agg-h200-dspark-kv-router/deploy.yaml</code> (DSpark + KV router)<br /><code>vllm/agg-h200-dspark/deploy.yaml</code><br /><code>vllm/agg-h200-dflash/deploy.yaml</code><br /><code>vllm/agg-h200-mtp/deploy.yaml</code></td></tr>
 <tr data-sku="gb200" data-variant="agg"><td>vLLM</td><td>Aggregated</td><td>GB200</td><td>MTP, DFlash, DSpark</td><td><code>vllm/agg-gb200-dspark/deploy.yaml</code><br /><code>vllm/agg-gb200-dflash/deploy.yaml</code><br /><code>vllm/agg-gb200-mtp/deploy.yaml</code></td></tr>
 <tr data-sku="b200" data-variant="vllm-disagg"><td>vLLM</td><td>Disaggregated 1P1D</td><td>B200</td><td>DSpark</td><td><code>vllm/disagg-b200-dspark/deploy.yaml</code></td></tr>
-<tr data-sku="h100" data-variant="vllm-disagg"><td>vLLM</td><td>Disaggregated 1P1D</td><td>H100</td><td>MTP, DFlash, DSpark</td><td><code>vllm/disagg-h100-dflash/deploy.yaml</code><br /><code>vllm/disagg-h100-dspark/deploy.yaml</code><br /><code>vllm/disagg-h100-mtp/deploy.yaml</code></td></tr>
+<tr data-sku="h100" data-variant="vllm-disagg"><td>vLLM</td><td>Disaggregated 1P1D</td><td>H100</td><td>MTP, DFlash, DSpark</td><td><code>vllm/disagg-h100-dspark/deploy.yaml</code><br /><code>vllm/disagg-h100-dflash/deploy.yaml</code><br /><code>vllm/disagg-h100-mtp/deploy.yaml</code></td></tr>
 <tr data-sku="h200" data-variant="vllm-disagg"><td>vLLM</td><td>Disaggregated 1P1D</td><td>H200</td><td>MTP, DFlash, DSpark</td><td><code>vllm/disagg-h200-dspark/deploy.yaml</code><br /><code>vllm/disagg-h200-dflash/deploy.yaml</code><br /><code>vllm/disagg-h200-mtp/deploy.yaml</code></td></tr>
 <tr data-sku="gb200" data-variant="vllm-disagg"><td>vLLM</td><td>Disaggregated 1P1D</td><td>GB200</td><td>DFlash, DSpark</td><td><code>vllm/disagg-gb200-dspark/deploy.yaml</code><br /><code>vllm/disagg-gb200-dflash/deploy.yaml</code></td></tr>
 <tr data-sku="b200" data-variant="trtllm-agg"><td>TensorRT-LLM</td><td>Aggregated</td><td>B200</td><td>MTP, no-spec fallback</td><td><code>trtllm/agg-b200-mtp/deploy.yaml</code><br /><code>trtllm/agg-b200/deploy.yaml</code></td></tr>
@@ -657,6 +658,7 @@ TensorRT-LLM rows are experimental smoke or inventory results in the source READ
 
 - Source README: [recipes/nemotron-3.5-lightning/README.md](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/README.md)
 - vLLM README: [recipes/nemotron-3.5-lightning/vllm/README.md](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/vllm/README.md)
+- EFA check helper: [recipes/nemotron-3.5-lightning/vllm/check-efa-userspace.sh](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/vllm/check-efa-userspace.sh)
 - TensorRT-LLM README: [recipes/nemotron-3.5-lightning/trtllm/README.md](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/trtllm/README.md)
 - Performance notes: [recipes/nemotron-3.5-lightning/perf/README.md](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/perf/README.md)
 - Model cache manifests: [model-cache](https://github.com/ai-dynamo/dynamo/tree/main/recipes/nemotron-3.5-lightning/model-cache)

@@ -58,6 +58,18 @@ more GPUs.
    populated with `../model-cache/model-download.yaml`.
 3. A Hugging Face secret named `hf-token-secret` and an image-pull secret when
    required by the cluster.
+4. For H100 disaggregated recipes, AWS EFA userspace must already be available
+   in the runtime image or installed through your cluster's approved bootstrap
+   flow. These manifests request `vpc.amazonaws.com/efa` and select the NIXL
+   LIBFABRIC backend, but they do not install EFA packages during pod startup.
+   Use `check-efa-userspace.sh` to validate a prepared image or running pod. If
+   you use its install mode, set `EFA_INSTALLER_VERSION` and
+   `EFA_INSTALLER_SHA256` to pin and verify the installer archive.
+
+```bash
+kubectl exec -n "${NAMESPACE}" <h100-worker-pod> -- \
+  bash -s -- check < check-efa-userspace.sh
+```
 
 ## Quick start
 
@@ -113,5 +125,6 @@ ConfigMap key.
 - B200 DFlash recipes disable the FlashInfer FP8 ScaledMM linear kernel.
 - Disaggregated recipes require matching speculative-decoding settings on the
   prefill and decode workers for compatible NIXL cache metadata.
+- H100 disaggregated recipes require the EFA userspace stack before deployment.
 - Replace `your-image-pull-secret` and any cluster-specific networking resource
   names with values available in the target cluster.
