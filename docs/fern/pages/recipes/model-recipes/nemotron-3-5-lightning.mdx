@@ -212,7 +212,7 @@ kubectl apply -f recipes/nemotron-3.5-lightning/vllm/disagg-b200-dspark/deploy.y
 kubectl get dgd vllm-disagg-b200-dspark -n ${NAMESPACE} -w
 ```
 
-The checked-in B200 disaggregated DSpark row produced a 500-request smoke result.
+Use this target for B200 disaggregated vLLM validation with DSpark speculative decoding.
 
 </div>
 
@@ -223,7 +223,7 @@ kubectl apply -f recipes/nemotron-3.5-lightning/vllm/disagg-h100-dflash/deploy.y
 kubectl get dgd vllm-disagg-h100-dflash -n ${NAMESPACE} -w
 ```
 
-DFlash is the highest-throughput H100 disaggregated row in the source inventory. Use `disagg-h100-mtp` or `disagg-h100-dspark` to compare the other speculative decoding modes.
+DFlash has the highest tok/s/user among the H100 disaggregated rows in the source inventory. Use `disagg-h100-mtp` or `disagg-h100-dspark` to compare the other speculative decoding modes.
 
 </div>
 
@@ -409,7 +409,7 @@ curl http://localhost:8000/v1/chat/completions \
 
 ## Benchmark
 
-The checked-in recipe includes benchmark results in [`recipes/nemotron-3.5-lightning/perf/README.md`](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/perf/README.md), but it does not include a runnable benchmark Job manifest. Most rows replay the 3,541-request Mooncake-format agentic trace; the source performance README records request counts for shorter smoke rows. The pass criteria are `tok/s/user >= 50` and TTFT p50 under 5 seconds.
+The checked-in recipe includes benchmark results in [`recipes/nemotron-3.5-lightning/perf/README.md`](https://github.com/ai-dynamo/dynamo/blob/main/recipes/nemotron-3.5-lightning/perf/README.md). The pass criteria are `tok/s/user >= 50` and TTFT p50 under 5 seconds.
 
 To reproduce the shape, run AIPerf against the selected frontend with a Mooncake trace replay and the target concurrency from the table.
 
@@ -419,7 +419,7 @@ To reproduce the shape, run AIPerf against the selected frontend with a Mooncake
 aiperf profile \
   -m nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-NVFP4 \
   --custom-dataset-type mooncake_trace \
-  --num-requests 500 \
+  --num-requests 3541 \
   --endpoint-type chat \
   --streaming \
   --use-server-token-count \
@@ -597,9 +597,10 @@ TensorRT-LLM rows are experimental smoke or inventory results in the source READ
 <tr data-sku="gb200" data-variant="vllm-disagg"><td><code>vllm/disagg-gb200-dspark/deploy.yaml</code></td><td>DSpark</td><td>1P1D</td><td>8</td><td>599.17</td><td>939.28</td><td>234.82</td></tr>
 <tr data-sku="b200" data-variant="trtllm-agg"><td><code>trtllm/agg-b200/deploy.yaml</code></td><td>None</td><td>Single worker</td><td>18</td><td>377.68</td><td>386.998</td><td>21.50</td></tr>
 <tr data-sku="b200" data-variant="trtllm-agg"><td><code>trtllm/agg-b200-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>18</td><td>446.88</td><td>427.82</td><td>23.77</td></tr>
-<tr data-sku="h100" data-variant="trtllm-agg"><td><code>trtllm/agg-h100-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>12</td><td>30570.70</td><td>380.91</td><td>31.74</td></tr>
-<tr data-sku="h200" data-variant="trtllm-agg"><td><code>trtllm/agg-h200-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>12</td><td>473.46</td><td>484.34</td><td>40.36</td></tr>
-<tr data-sku="gb200" data-variant="trtllm-agg"><td><code>trtllm/agg-gb200-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>18</td><td>304.49</td><td>940.30</td><td>52.24</td></tr>
+<tr data-sku="h100" data-variant="trtllm-agg"><td><code>trtllm/agg-h100-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>12</td><td>1757.00</td><td>264.87</td><td>22.07</td></tr>
+<tr data-sku="h200" data-variant="trtllm-agg"><td><code>trtllm/agg-h200-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>12</td><td>1630.96</td><td>269.26</td><td>22.44</td></tr>
+<tr data-sku="gb200" data-variant="trtllm-agg"><td><code>trtllm/agg-gb200/deploy.yaml</code></td><td>None</td><td>Single worker</td><td>18</td><td>318.88</td><td>280.10</td><td>15.56</td></tr>
+<tr data-sku="gb200" data-variant="trtllm-agg"><td><code>trtllm/agg-gb200-mtp/deploy.yaml</code></td><td>MTP</td><td>Single worker</td><td>18</td><td>400.88</td><td>580.09</td><td>32.23</td></tr>
 </tbody>
 </table>
 </div>
