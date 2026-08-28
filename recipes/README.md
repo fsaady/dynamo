@@ -32,6 +32,7 @@ These recipes demonstrate aggregated or disaggregated serving:
 
 | Model | Framework | Mode | GPUs | Deployment | Benchmark | Notes | GAIE |
 |-------|-----------|------|------|------------|-----------|-------|------|
+| **[Qwen3.6-35B-A3B](qwen3.6-35b-a3b/)** | vLLM, SGLang | Aggregated | 1x B200 | ✅ | ✅ | See the [rendered recipe documentation](https://docs.nvidia.com/dynamo/latest/recipes/qwen3-6-35b-a3b) | ❌ |
 | **[Qwen3-32B-FP8](qwen3-32b-fp8/trtllm/agg/)** | TensorRT-LLM | Aggregated | 2x H100/H200/A100 | ✅ | ✅ | FP8 quantization | ❌ |
 | **[Qwen3-32B-FP8](qwen3-32b-fp8/trtllm/disagg/)** | TensorRT-LLM | Disaggregated | 8x H100/H200/A100 | ✅ | ✅ | Prefill + Decode separation | ❌ |
 | **[Qwen3-32B-FP8](qwen3-32b-fp8/vllm/disagg/)** | vLLM | Disagg (Single-Node) | 8x A100 | ✅ | ✅ | 2× TP2 prefill + 1× TP4 decode, NixlConnector KV transfer | ❌ |

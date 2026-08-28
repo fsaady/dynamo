@@ -1,0 +1,172 @@
+---
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+title: "Qwen3.6-35B-A3B"
+subtitle: "Serve Qwen3.6-35B-A3B with Dynamo and SGLang on B200, GB200, or H200."
+---
+
+import { RecipeStyles } from "@/components/RecipeStyles";
+
+<RecipeStyles />
+
+These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B-NVFP4` on B200 or GB200, and reserve an H200 target for `Qwen/Qwen3.6-35B-A3B-FP8` (TBD). The available targets use Dynamo 1.4.0 and SGLang with MTP speculative decoding.
+
+<div className="dynamo-target-picker">
+<p className="dynamo-target-picker-title">Choose your deployment target</p>
+<div className="dynamo-target-picker-row">
+<span className="dynamo-target-picker-dim">GPU</span>
+<input type="radio" id="recipe-sku-b200" name="recipe-sku" value="b200" defaultChecked />
+<label htmlFor="recipe-sku-b200">B200</label>
+<input type="radio" id="recipe-sku-gb200" name="recipe-sku" value="gb200" />
+<label htmlFor="recipe-sku-gb200">GB200</label>
+<input type="radio" id="recipe-sku-h200" name="recipe-sku" value="h200" />
+<label htmlFor="recipe-sku-h200">H200</label>
+</div>
+<div className="dynamo-target-picker-summary" data-sku="b200">
+<span><b>Checkpoint</b> nvidia/Qwen3.6-35B-A3B-NVFP4</span>
+<span><b>Precision</b> NVFP4 weights + FP8 KV cache</span>
+<span><b>GPUs</b> 1x B200</span>
+<span><b>Runtime</b> SGLang aggregate worker</span>
+<span><b>Spec decode</b> MTP</span>
+</div>
+<div className="dynamo-target-picker-summary" data-sku="h200">
+<span><b>Checkpoint</b> Qwen/Qwen3.6-35B-A3B-FP8</span>
+<span><b>Precision</b> FP8 weights</span>
+<span><b>GPUs</b> 1x H200</span>
+<span><b>Runtime</b> SGLang aggregate worker</span>
+<span><b>Spec decode</b> TBD</span>
+</div>
+<div className="dynamo-target-picker-summary" data-sku="gb200">
+<span><b>Checkpoint</b> nvidia/Qwen3.6-35B-A3B-NVFP4</span>
+<span><b>Precision</b> NVFP4 weights + FP8 KV cache</span>
+<span><b>GPUs</b> 1x GB200</span>
+<span><b>Runtime</b> SGLang aggregate worker</span>
+<span><b>Spec decode</b> MTP</span>
+</div>
+</div>
+
+## Prerequisites
+
+- A Kubernetes cluster with the Dynamo platform and DGD CRDs installed.
+- A namespace with access to the selected GPU target.
+- A ReadWriteMany `model-cache` PVC. Set `storageClassName` in the model-cache manifest before deployment.
+
+The checkpoint is downloaded from Hugging Face by the selected model-download Job. Add a Hugging Face token only if your environment requires authenticated access.
+
+## Deploy
+
+Create the model cache and download the selected checkpoint:
+
+<div data-sku="b200">
+
+```bash
+export NAMESPACE=your-namespace
+kubectl apply -f recipes/qwen3.6-35b-a3b/model-cache/model-cache.yaml -n ${NAMESPACE}
+kubectl apply -f recipes/qwen3.6-35b-a3b/model-cache/model-download-nvfp4.yaml -n ${NAMESPACE}
+kubectl wait --for=condition=Complete job/model-download-nvfp4 -n ${NAMESPACE} --timeout=7200s
+```
+
+</div>
+
+<div data-sku="gb200">
+
+```bash
+export NAMESPACE=your-namespace
+kubectl apply -f recipes/qwen3.6-35b-a3b/model-cache/model-cache.yaml -n ${NAMESPACE}
+kubectl apply -f recipes/qwen3.6-35b-a3b/model-cache/model-download-nvfp4.yaml -n ${NAMESPACE}
+kubectl wait --for=condition=Complete job/model-download-nvfp4 -n ${NAMESPACE} --timeout=7200s
+```
+
+</div>
+
+<div data-sku="h200">
+
+```bash
+export NAMESPACE=your-namespace
+kubectl apply -f recipes/qwen3.6-35b-a3b/model-cache/model-cache.yaml -n ${NAMESPACE}
+kubectl apply -f recipes/qwen3.6-35b-a3b/model-cache/model-download-fp8.yaml -n ${NAMESPACE}
+kubectl wait --for=condition=Complete job/model-download-fp8 -n ${NAMESPACE} --timeout=7200s
+```
+
+</div>
+
+Deploy the selected target:
+
+<div data-sku="b200">
+
+```bash
+kubectl apply -f recipes/qwen3.6-35b-a3b/sglang/agg-b200-mtp/deploy.yaml -n ${NAMESPACE}
+```
+
+</div>
+
+<div data-sku="gb200">
+
+```bash
+kubectl apply -f recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml -n ${NAMESPACE}
+```
+
+</div>
+
+<div data-sku="h200">
+
+TBD
+
+</div>
+
+## Smoke Test
+
+<div data-sku="b200 gb200">
+
+Forward the frontend service and verify the model:
+
+```bash
+kubectl port-forward svc/<deployment-name>-frontend 8000:8000 -n ${NAMESPACE}
+curl http://localhost:8000/v1/models
+```
+
+Send a chat request:
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"nvidia/Qwen3.6-35B-A3B-NVFP4","messages":[{"role":"user","content":"Hello"}],"max_tokens":32}'
+```
+
+</div>
+
+<div data-sku="h200">
+
+TBD
+
+</div>
+
+## Benchmark
+
+See the [performance README](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/perf/README.md) for the measured command, warmup procedure, and results.
+
+## Expected Performance
+
+Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurrency 32 with 3,541 trace requests:
+
+<div className="dynamo-variant-table-wrap">
+<table className="dynamo-variant-table">
+<thead>
+<tr><th>GPU</th><th>Runtime</th><th>Output tok/s</th><th>tok/s/user</th><th>tok/s/GPU</th><th>P50 TTFT</th></tr>
+</thead>
+<tbody>
+<tr data-sku="b200"><td>B200</td><td>SGLang</td><td>3096.77</td><td>96.77</td><td>3096.77</td><td>332.92 ms</td></tr>
+<tr data-sku="gb200"><td>GB200</td><td>SGLang</td><td>3318.50</td><td>103.70</td><td>3318.50</td><td>185.92 ms</td></tr>
+<tr data-sku="h200"><td>H200</td><td>TBD</td><td>TBD</td><td>TBD</td><td>TBD</td><td>TBD</td></tr>
+</tbody>
+</table>
+</div>
+
+## Source
+
+- [B200 SGLang deployment manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-b200-mtp/deploy.yaml)
+- [GB200 SGLang deployment manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml)
+- [H200 SGLang deployment manifest (TBD)](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-h200-mtp/deploy.yaml)
+- [NVFP4 model-download manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/model-cache/model-download-nvfp4.yaml)
+- [FP8 model-download manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/model-cache/model-download-fp8.yaml)
+- [Model-cache manifests](https://github.com/ai-dynamo/dynamo/tree/main/recipes/qwen3.6-35b-a3b/model-cache)

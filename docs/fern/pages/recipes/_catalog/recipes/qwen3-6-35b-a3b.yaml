@@ -1,0 +1,82 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+#
+id: qwen3-6-35b-a3b
+title: Qwen3.6-35B-A3B
+page: pages/recipes/model-recipes/qwen3-6-35b-a3b.mdx
+provider: qwen
+model:
+  name: Qwen3.6-35B-A3B
+  hf_id: nvidia/Qwen3.6-35B-A3B-NVFP4 / Qwen/Qwen3.6-35B-A3B-FP8
+  precision: NVFP4 or FP8 weights + FP8 KV cache
+status: validated
+artifacts:
+  recipe_specific_images:
+  - nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
+  recipe_specific_image_periods:
+  - image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
+    source_revision: 22bb1d4981fd17d11917036531a71ef91790c823
+    source_kind: deploy-asset
+targets:
+- id: sglang-b200-agg-chat
+  recommended: true
+  hardware:
+    gpu: B200
+    count: 1
+  runtime:
+    framework: Dynamo + SGLang
+    image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
+  topology: aggregated
+  techniques:
+  - fp8-kv-cache
+  - prefix-caching
+  - flashinfer-cutlass
+  workload:
+    type: agentic
+    traffic: 64K input tokens / 400 output tokens, 90% KV reuse, concurrency 32, 3541 requests
+  deploy:
+    asset: recipes/qwen3.6-35b-a3b/sglang/agg-b200-mtp/deploy.yaml
+  expected_performance:
+    available: true
+    summary: 3096.77 output tok/s, 96.77 tok/s/user, and 3096.77 tok/s/GPU at concurrency 32 after a 32-request warmup
+- id: sglang-gb200-agg-chat
+  recommended: false
+  hardware:
+    gpu: GB200
+    count: 1
+  runtime:
+    framework: Dynamo + SGLang
+    image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
+  topology: aggregated
+  techniques:
+  - fp8-kv-cache
+  - prefix-caching
+  - speculative-decoding
+  - flashinfer-cutlass
+  workload:
+    type: agentic
+    traffic: 64K input tokens / 400 output tokens, 90% KV reuse, concurrency 32, 3541 requests
+  deploy:
+    asset: recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml
+  expected_performance:
+    available: true
+    summary: 3318.50 output tok/s, 103.70 tok/s/user, and 3318.50 tok/s/GPU at concurrency 32
+- id: sglang-h200-agg-chat
+  recommended: false
+  hardware:
+    gpu: H200
+    count: 1
+  runtime:
+    framework: Dynamo + SGLang
+  topology: aggregated
+  techniques:
+  - fp8-kv-cache
+  workload:
+    type: agentic
+    traffic: TBD
+  deploy:
+    asset: recipes/qwen3.6-35b-a3b/sglang/agg-h200-mtp/deploy.yaml
+  expected_performance:
+    available: false
+related_benchmarks: []
+maintainer: null
