@@ -38,13 +38,14 @@ measured phase for warmup.
 
 ## Results
 
-All measurements use the Dynamo SGLang 1.4.0 runtime image and one GPU.
+All measurements use one GPU. The Blackwell rows run the Dynamo SGLang 1.4.0 runtime image; the
+H200 row runs Dynamo vLLM 1.4.0.
 
 | Recipe | Model | GPU | Passed | Failed | Output tok/s/GPU | Average tok/s/user | P50 tok/s/user | P50 TTFT |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | [`sglang/agg-b200-mtp/deploy.yaml`](../sglang/agg-b200-mtp/deploy.yaml) | NVFP4 | 1× B200 | 3,410 | 131 | 2,988.50 | 115.81 | 111.98 | 286.90 ms |
 | [`sglang/agg-gb200-mtp/deploy.yaml`](../sglang/agg-gb200-mtp/deploy.yaml) | NVFP4 | 1× GB200 | 3,410 | 131 | 3,035.98 | 114.03 | 111.47 | 156.07 ms |
-| TBD | TBD | 1× H200 | TBD | TBD | TBD | TBD | TBD | TBD |
+| [`vllm/agg-h200-mtp/deploy.yaml`](../vllm/agg-h200-mtp/deploy.yaml) | FP8 | 1× H200 | 3,411 | 130 | 1,871.80 | 75.48 | 71.60 | 444.51 ms |
 
 The MTP results use three speculative tokens with a synthetic acceptance
 length of 3.3153. This value was calculated for the coding workload in
@@ -57,3 +58,16 @@ fixed token ID 100 when the token mode is omitted. That token decodes to the
 Unicode replacement character for the Qwen tokenizer, so Dynamo buffers the
 generated text until the response finishes and AIPerf cannot calculate
 inter-token latency or output throughput per user.
+
+## H200
+
+The H200 target runs Dynamo vLLM. MTP at k=3 is worth +51-55% output tok/s and roughly half the P50
+ITL against the identical recipe without it, measured at concurrency 8/16/32 on a 1,000-row subset
+of this trace with the same pinned acceptance; k=3 beat k=2 and k=1 at every point.
+
+Three settings measured to lose on this stack, and therefore left at their defaults in the
+manifest: `--kv-cache-dtype fp8` (-14.2 to -21.1%), `--moe-backend flashinfer_cutlass` (-9.0 to
+-17.8%; vLLM's oracle selects TRITON on Hopper for block-FP8 with plain TP), and disaggregation
+(-22.7% at 1P1D, -30.0% at 1P2D, -46.4% at 1P3D, per GPU).
+
+Warmup was a single burst at the measured concurrency rather than a separate 32-request pass.

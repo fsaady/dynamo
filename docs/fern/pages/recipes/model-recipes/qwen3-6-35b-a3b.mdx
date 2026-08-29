@@ -9,7 +9,7 @@ import { RecipeStyles } from "@/components/RecipeStyles";
 
 <RecipeStyles />
 
-These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B-NVFP4` on B200 or GB200, and reserve an H200 target for `Qwen/Qwen3.6-35B-A3B-FP8` (TBD). The available targets use Dynamo 1.4.0 and SGLang with MTP speculative decoding.
+These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B-NVFP4` on B200 or GB200 and `Qwen/Qwen3.6-35B-A3B-FP8` on H200. All three run Dynamo 1.4.0 with MTP speculative decoding: the Blackwell targets on SGLang, the H200 target on vLLM.
 
 <div className="dynamo-target-picker">
 <p className="dynamo-target-picker-title">Choose your deployment target</p>
@@ -31,10 +31,10 @@ These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B
 </div>
 <div className="dynamo-target-picker-summary" data-sku="h200">
 <span><b>Checkpoint</b> Qwen/Qwen3.6-35B-A3B-FP8</span>
-<span><b>Precision</b> FP8 weights</span>
+<span><b>Precision</b> FP8 weights, BF16 KV</span>
 <span><b>GPUs</b> 1x H200</span>
-<span><b>Runtime</b> SGLang aggregate worker</span>
-<span><b>Spec decode</b> TBD</span>
+<span><b>Runtime</b> vLLM aggregate worker, TP1</span>
+<span><b>Spec decode</b> MTP, 3 tokens</span>
 </div>
 <div className="dynamo-target-picker-summary" data-sku="gb200">
 <span><b>Checkpoint</b> nvidia/Qwen3.6-35B-A3B-NVFP4</span>
@@ -110,7 +110,15 @@ kubectl apply -f recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml -n ${N
 
 <div data-sku="h200">
 
-TBD
+```bash
+kubectl apply -f recipes/qwen3.6-35b-a3b/vllm/agg-h200-mtp/deploy.yaml -n ${NAMESPACE}
+kubectl wait --for=condition=Ready pod \
+  -l nvidia.com/dynamo-graph-deployment-name=qwen36-35b-a3b-vllm-h200-agg-agentic \
+  -n ${NAMESPACE} --timeout=3600s
+```
+
+First boot loads the FP8 checkpoint, then MTP loads a second model and captures a second set of
+CUDA graphs, so allow several minutes.
 
 </div>
 
@@ -137,7 +145,16 @@ curl http://localhost:8000/v1/chat/completions \
 
 <div data-sku="h200">
 
-TBD
+```bash
+kubectl port-forward svc/qwen36-35b-a3b-vllm-h200-agg-agentic-frontend 8000:8000 -n ${NAMESPACE} &
+curl -s localhost:8000/v1/chat/completions -H 'Content-Type: application/json' -d '{
+  "model": "qwen3.6-35b-a3b",
+  "messages": [{"role": "user", "content": "Reply with exactly: RECIPE OK"}],
+  "max_tokens": 4000
+}' | jq -r '.choices[0].message.content'
+```
+
+The worker runs with `--enable-multimodal`, so image content is accepted on the same endpoint.
 
 </div>
 
@@ -157,7 +174,7 @@ Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurren
 <tbody>
 <tr data-sku="b200"><td>B200</td><td>SGLang</td><td>3096.77</td><td>96.77</td><td>3096.77</td><td>332.92 ms</td></tr>
 <tr data-sku="gb200"><td>GB200</td><td>SGLang</td><td>3318.50</td><td>103.70</td><td>3318.50</td><td>185.92 ms</td></tr>
-<tr data-sku="h200"><td>H200</td><td>TBD</td><td>TBD</td><td>TBD</td><td>TBD</td><td>TBD</td></tr>
+<tr data-sku="h200"><td>H200</td><td>vLLM</td><td>1871.80</td><td>71.60</td><td>1871.80</td><td>444.51 ms</td></tr>
 </tbody>
 </table>
 </div>
@@ -166,7 +183,7 @@ Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurren
 
 - [B200 SGLang deployment manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-b200-mtp/deploy.yaml)
 - [GB200 SGLang deployment manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml)
-- [H200 SGLang deployment manifest (TBD)](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-h200-mtp/deploy.yaml)
+- [H200 vLLM deployment manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/vllm/agg-h200-mtp/deploy.yaml)
 - [NVFP4 model-download manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/model-cache/model-download-nvfp4.yaml)
 - [FP8 model-download manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/model-cache/model-download-fp8.yaml)
 - [Model-cache manifests](https://github.com/ai-dynamo/dynamo/tree/main/recipes/qwen3.6-35b-a3b/model-cache)
