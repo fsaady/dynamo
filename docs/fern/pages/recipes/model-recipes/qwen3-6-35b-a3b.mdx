@@ -2,14 +2,14 @@
 # SPDX-FileCopyrightText: Copyright (c) 2025-2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 title: "Qwen3.6-35B-A3B"
-subtitle: "Serve Qwen3.6-35B-A3B with Dynamo and SGLang on B200, GB200, or H200."
+subtitle: "Serve Qwen3.6-35B-A3B with Dynamo on B200, GB200, or H200."
 ---
 
 import { RecipeStyles } from "@/components/RecipeStyles";
 
 <RecipeStyles />
 
-These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B-NVFP4` on B200 or GB200 and `Qwen/Qwen3.6-35B-A3B-FP8` on H200. All three run Dynamo 1.4.0 with MTP speculative decoding: the Blackwell targets on SGLang, the H200 target on vLLM.
+These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B-NVFP4` on B200 or GB200 and `Qwen/Qwen3.6-35B-A3B-FP8` on H200.
 
 <div className="dynamo-target-picker">
 <p className="dynamo-target-picker-title">Choose your deployment target</p>
@@ -27,13 +27,13 @@ These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B
 <span><b>Precision</b> NVFP4 weights + FP8 KV cache</span>
 <span><b>GPUs</b> 1x B200</span>
 <span><b>Runtime</b> SGLang aggregate worker</span>
-<span><b>Spec decode</b> MTP</span>
+<span><b>Spec decode</b> MTP, 3 tokens</span>
 </div>
 <div className="dynamo-target-picker-summary" data-sku="h200">
 <span><b>Checkpoint</b> Qwen/Qwen3.6-35B-A3B-FP8</span>
 <span><b>Precision</b> FP8 weights, BF16 KV</span>
 <span><b>GPUs</b> 1x H200</span>
-<span><b>Runtime</b> vLLM aggregate worker, TP1</span>
+<span><b>Runtime</b> vLLM aggregate worker</span>
 <span><b>Spec decode</b> MTP, 3 tokens</span>
 </div>
 <div className="dynamo-target-picker-summary" data-sku="gb200">
@@ -41,7 +41,7 @@ These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B
 <span><b>Precision</b> NVFP4 weights + FP8 KV cache</span>
 <span><b>GPUs</b> 1x GB200</span>
 <span><b>Runtime</b> SGLang aggregate worker</span>
-<span><b>Spec decode</b> MTP</span>
+<span><b>Spec decode</b> MTP, 3 tokens</span>
 </div>
 </div>
 
@@ -52,6 +52,10 @@ These aggregated recipes serve the agentic workload with `nvidia/Qwen3.6-35B-A3B
 - A ReadWriteMany `model-cache` PVC. Set `storageClassName` in the model-cache manifest before deployment.
 
 The checkpoint is downloaded from Hugging Face by the selected model-download Job. Add a Hugging Face token only if your environment requires authenticated access.
+
+<Warning>
+Edit namespace, storage class, image tags, node selectors, resource claims, and cluster-specific placement in the manifests before applying them.
+</Warning>
 
 ## Deploy
 
@@ -112,13 +116,7 @@ kubectl apply -f recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml -n ${N
 
 ```bash
 kubectl apply -f recipes/qwen3.6-35b-a3b/vllm/agg-h200-mtp/deploy.yaml -n ${NAMESPACE}
-kubectl wait --for=condition=Ready pod \
-  -l nvidia.com/dynamo-graph-deployment-name=qwen36-35b-a3b-vllm-h200-agg-agentic \
-  -n ${NAMESPACE} --timeout=3600s
 ```
-
-First boot loads the FP8 checkpoint, then MTP loads a second model and captures a second set of
-CUDA graphs, so allow several minutes.
 
 </div>
 
@@ -145,22 +143,130 @@ curl http://localhost:8000/v1/chat/completions \
 
 <div data-sku="h200">
 
+Forward the frontend service and verify the model:
+
 ```bash
-kubectl port-forward svc/qwen36-35b-a3b-vllm-h200-agg-agentic-frontend 8000:8000 -n ${NAMESPACE} &
-curl -s localhost:8000/v1/chat/completions -H 'Content-Type: application/json' -d '{
-  "model": "qwen3.6-35b-a3b",
-  "messages": [{"role": "user", "content": "Reply with exactly: RECIPE OK"}],
-  "max_tokens": 4000
-}' | jq -r '.choices[0].message.content'
+kubectl port-forward svc/<deployment-name>-frontend 8000:8000 -n ${NAMESPACE}
+curl http://localhost:8000/v1/models
 ```
 
-The worker runs with `--enable-multimodal`, so image content is accepted on the same endpoint.
+Send a chat request:
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen3.6-35B-A3B-FP8","messages":[{"role":"user","content":"Hello"}],"max_tokens":32}'
+```
+
+</div>
+
+Qwen3.6 also accepts image input. Send an `image_url` content part:
+
+<div data-sku="b200 gb200">
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"nvidia/Qwen3.6-35B-A3B-NVFP4","messages":[{"role":"user","content":[{"type":"text","text":"Describe this image."},{"type":"image_url","image_url":{"url":"https://raw.githubusercontent.com/ai-dynamo/dynamo/main/docs/assets/img/frontpage-banner.png"}}]}],"max_tokens":256}'
+```
+
+</div>
+
+<div data-sku="h200">
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{"model":"Qwen/Qwen3.6-35B-A3B-FP8","messages":[{"role":"user","content":[{"type":"text","text":"Describe this image."},{"type":"image_url","image_url":{"url":"https://raw.githubusercontent.com/ai-dynamo/dynamo/main/docs/assets/img/frontpage-banner.png"}}]}],"max_tokens":256}'
+```
 
 </div>
 
 ## Benchmark
 
-See the [performance README](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/perf/README.md) for the measured command, warmup procedure, and results.
+These results use [AIPerf](https://github.com/ai-dynamo/aiperf) 0.10.0 and the
+[`64k_400_90kv_agent_new_noschedule_short_15perc.jsonl`](https://github.com/ai-dynamo/dynamo/blob/main/recipes/kimi-k2.6/perf/traces/64k_400_90kv_agent_new_noschedule_short_15perc.jsonl)
+trace. The workload uses 64K input tokens, 400 output tokens, 90% KV reuse,
+concurrency 32, and 3,541 trace requests. The trace contains 130–131 requests
+expected to exceed the model context length and fail, depending on the selected
+recipe and generated output length.
+You can fetch the Git LFS-backed trace before running the benchmark:
+
+```bash
+# Required to pull the 64K trace used by the benchmark.
+git lfs install && git lfs pull
+```
+
+All measurements use one GPU.
+
+Run one separate 32-request pass using the same trace and options before the
+measured phase for warmup.
+
+<div data-sku="b200 gb200">
+
+```bash
+aiperf profile \
+  -m nvidia/Qwen3.6-35B-A3B-NVFP4 \
+  --tokenizer nvidia/Qwen3.6-35B-A3B-NVFP4 \
+  --input-file /data/traces/64k_400_90kv_agent_new_noschedule_short_15perc.jsonl \
+  --custom-dataset-type mooncake_trace \
+  --num-requests 3541 \
+  --url http://<deployment>-frontend:8000 \
+  --endpoint-type chat \
+  --streaming --use-server-token-count \
+  --extra-inputs ignore_eos:true \
+  --concurrency 32 --workers-max 32 \
+  --random-seed 42 --ui none \
+  --tokenizer-trust-remote-code \
+  --request-timeout-seconds 1200
+```
+
+</div>
+
+<div data-sku="h200">
+
+```bash
+aiperf profile \
+  -m Qwen/Qwen3.6-35B-A3B-FP8 \
+  --tokenizer Qwen/Qwen3.6-35B-A3B-FP8 \
+  --input-file /data/traces/64k_400_90kv_agent_new_noschedule_short_15perc.jsonl \
+  --custom-dataset-type mooncake_trace \
+  --num-requests 3541 \
+  --url http://<deployment>-frontend:8000 \
+  --endpoint-type chat \
+  --streaming --use-server-token-count \
+  --extra-inputs ignore_eos:true \
+  --concurrency 32 --workers-max 32 \
+  --random-seed 42 --ui none \
+  --tokenizer-trust-remote-code \
+  --request-timeout-seconds 1200
+```
+
+</div>
+
+The MTP results use three speculative tokens with a synthetic acceptance
+length of 3.3153. This value was calculated for the coding workload in
+SpeedBench. The full trace produced 131 expected context-length errors.
+
+<div data-sku="h200">
+
+When benchmarking vLLM with synthetic acceptance, set `rejection_sample_method`
+to `synthetic` and `synthetic_acceptance_length` to `3.3153` in
+`--speculative-config`.
+
+</div>
+
+<div data-sku="b200 gb200">
+
+When benchmarking SGLang with synthetic acceptance, set
+`SGLANG_SIMULATE_ACC_TOKEN_MODE=real-draft-token` together with
+`SGLANG_SIMULATE_ACC_LEN` and `SGLANG_SIMULATE_ACC_METHOD`. SGLang 0.5.16 uses
+fixed token ID 100 when the token mode is omitted. That token decodes to the
+Unicode replacement character for the Qwen tokenizer, so Dynamo buffers the
+generated text until the response finishes and AIPerf cannot calculate
+inter-token latency or output throughput per user.
+
+</div>
 
 ## Expected Performance
 
@@ -169,12 +275,12 @@ Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurren
 <div className="dynamo-variant-table-wrap">
 <table className="dynamo-variant-table">
 <thead>
-<tr><th>GPU</th><th>Runtime</th><th>Output tok/s</th><th>tok/s/user</th><th>tok/s/GPU</th><th>P50 TTFT</th></tr>
+<tr><th>Recipe</th><th>Model</th><th>GPU</th><th>Passed</th><th>Failed</th><th>OUTPUT TOK/S/GPU</th><th>Average tok/s/user</th><th>P50 tok/s/user</th><th>P50 TTFT</th></tr>
 </thead>
 <tbody>
-<tr data-sku="b200"><td>B200</td><td>SGLang</td><td>3096.77</td><td>96.77</td><td>3096.77</td><td>332.92 ms</td></tr>
-<tr data-sku="gb200"><td>GB200</td><td>SGLang</td><td>3318.50</td><td>103.70</td><td>3318.50</td><td>185.92 ms</td></tr>
-<tr data-sku="h200"><td>H200</td><td>vLLM</td><td>1871.80</td><td>71.60</td><td>1871.80</td><td>444.51 ms</td></tr>
+<tr data-gpu="b200"><td><code>sglang/agg-b200-mtp/deploy.yaml</code></td><td>NVFP4</td><td>B200</td><td>3,410</td><td>131</td><td>2,988.50</td><td>115.81</td><td>111.98</td><td>286.90 ms</td></tr>
+<tr data-gpu="gb200"><td><code>sglang/agg-gb200-mtp/deploy.yaml</code></td><td>NVFP4</td><td>GB200</td><td>3,410</td><td>131</td><td>3,035.98</td><td>114.03</td><td>111.47</td><td>156.07 ms</td></tr>
+<tr data-gpu="h200"><td><code>vllm/agg-h200-mtp/deploy.yaml</code></td><td>FP8</td><td>H200</td><td>3,411</td><td>130</td><td>1,871.80</td><td>75.48</td><td>71.60</td><td>444.51 ms</td></tr>
 </tbody>
 </table>
 </div>

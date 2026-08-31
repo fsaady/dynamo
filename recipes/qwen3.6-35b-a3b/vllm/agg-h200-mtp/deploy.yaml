@@ -3,6 +3,27 @@
 #
 # Qwen3.6-35B-A3B-FP8 — aggregated H200, TP1 + MTP(nst=3), 1 GPU per replica.
 # 1,871.80 output tok/s/GPU at 71.60 tok/s/user P50, concurrency 32. See ../../perf/README.md
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qwen36-35b-a3b-vllm-h200-specdec-config
+  labels:
+    app.kubernetes.io/name: qwen36-35b-a3b-vllm-h200-agg-agentic
+    app.kubernetes.io/part-of: dynamo
+data:
+  speculative-config-synthetic: |-
+    {
+      "method": "mtp",
+      "num_speculative_tokens": 3,
+      "rejection_sample_method": "synthetic",
+      "synthetic_acceptance_length": 3.3153
+    }
+  speculative-config: |-
+    {
+      "method": "mtp",
+      "num_speculative_tokens": 3
+    }
+---
 apiVersion: nvidia.com/v1beta1
 kind: DynamoGraphDeployment
 metadata:
@@ -73,7 +94,7 @@ spec:
                 - --model
                 - Qwen/Qwen3.6-35B-A3B-FP8
                 - --served-model-name
-                - qwen3.6-35b-a3b
+                - Qwen/Qwen3.6-35B-A3B-FP8
                 - --trust-remote-code
                 - --enable-multimodal
                 - --mm-encoder-tp-mode
@@ -92,11 +113,8 @@ spec:
                 - "8192"
                 - --gpu-memory-utilization
                 - "0.9"
-                # +51-55% output tok/s against the same recipe without it; k=3 beat k=2 and
-                # k=1 at every measured point. `min_p` and `logit_bias` do not work under
-                # speculative decoding in vLLM -- drop this arg if a client needs either.
                 - --speculative-config
-                - '{"method":"mtp","num_speculative_tokens":3}'
+                - $(SPECULATIVE_CONFIG)
               env:
                 - name: HF_HOME
                   value: /model-cache
@@ -110,6 +128,12 @@ spec:
                   value: /tmp/vllm-config
                 - name: VLLM_CACHE_ROOT
                   value: /tmp/vllm-cache
+                - name: SPECULATIVE_CONFIG
+                  valueFrom:
+                    configMapKeyRef:
+                      name: qwen36-35b-a3b-vllm-h200-specdec-config
+                      # Use speculative-config-synthetic only for benchmarking.
+                      key: speculative-config
               resources:
                 requests:
                   nvidia.com/gpu: "1"

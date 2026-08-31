@@ -4,9 +4,9 @@
 apiVersion: nvidia.com/v1beta1
 kind: DynamoGraphDeployment
 metadata:
-  name: qwen36-35b-a3b-sglang-b200-agg-chat
+  name: qwen36-35b-a3b-sglang-b200-agg-agentic
   labels:
-    app.kubernetes.io/name: qwen36-35b-a3b-sglang-b200-agg-chat
+    app.kubernetes.io/name: qwen36-35b-a3b-sglang-b200-agg-agentic
     app.kubernetes.io/part-of: dynamo
 spec:
   backendFramework: sglang
