@@ -61,27 +61,26 @@ targets:
   expected_performance:
     available: true
     summary: 3318.50 output tok/s, 103.70 tok/s/user, and 3318.50 tok/s/GPU at concurrency 32
-- id: vllm-h200-agg-agentic
+- id: sglang-h200-agg-agentic
   recommended: false
   hardware:
     gpu: H200
     count: 1
   runtime:
-    framework: Dynamo + vLLM
-    image: nvcr.io/nvidia/ai-dynamo/vllm-runtime:1.4.0
+    framework: Dynamo + SGLang
+    image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
   topology: aggregated
   techniques:
   - tp1
   - mtp-spec-dec
   - prefix-caching
-  - multimodal
   workload:
     type: agentic
     traffic: 64K input tokens / 400 output tokens, 90% KV reuse, concurrency 32, 3541 requests
   deploy:
-    asset: recipes/qwen3.6-35b-a3b/vllm/agg-h200-mtp/deploy.yaml
+    asset: recipes/qwen3.6-35b-a3b/sglang/agg-h200-mtp/deploy.yaml
   expected_performance:
     available: true
-    summary: 1871.80 output tok/s, 71.60 tok/s/user P50, and 1871.80 tok/s/GPU at concurrency 32
+    summary: 1332.03 output tok/s, 57.75 tok/s/user P50, and 1332.03 tok/s/GPU at concurrency 32
 related_benchmarks: []
 maintainer: null
