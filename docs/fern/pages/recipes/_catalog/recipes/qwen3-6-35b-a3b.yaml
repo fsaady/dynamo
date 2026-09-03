@@ -28,9 +28,8 @@ targets:
     image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
   topology: aggregated
   techniques:
-  - fp8-kv-cache
+  - speculative-decoding
   - prefix-caching
-  - flashinfer-cutlass
   workload:
     type: agentic
     traffic: 64K input tokens / 400 output tokens, 90% KV reuse, concurrency 32, 3541 requests
@@ -49,10 +48,8 @@ targets:
     image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
   topology: aggregated
   techniques:
-  - fp8-kv-cache
   - prefix-caching
   - speculative-decoding
-  - flashinfer-cutlass
   workload:
     type: agentic
     traffic: 64K input tokens / 400 output tokens, 90% KV reuse, concurrency 32, 3541 requests
@@ -71,9 +68,8 @@ targets:
     image: nvcr.io/nvidia/ai-dynamo/sglang-runtime:1.4.0
   topology: aggregated
   techniques:
-  - tp1
-  - mtp-spec-dec
   - prefix-caching
+  - speculative-decoding
   workload:
     type: agentic
     traffic: 64K input tokens / 400 output tokens, 90% KV reuse, concurrency 32, 3541 requests
