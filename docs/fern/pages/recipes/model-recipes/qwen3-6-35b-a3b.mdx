@@ -287,6 +287,29 @@ Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurren
 </table>
 </div>
 
+## Expected Accuracy
+
+GPQA Diamond (`gpqa_diamond_aa_v3`) via NVIDIA Eval Factory, 8 samples per question
+over the 198-question set (1,584 responses), scored as `micro_avg_of_8`. Each recipe
+was evaluated as shipped, with its speculative decoding active and a live draft head:
+
+<div className="dynamo-target-table">
+<table>
+<thead>
+<tr><th>Recipe</th><th>Model</th><th>GPU</th><th>GPQA Diamond</th></tr>
+</thead>
+<tbody>
+<tr data-gpu="b200"><td><code>sglang/agg-b200-mtp/deploy.yaml</code></td><td>NVFP4</td><td>B200</td><td>79.23%</td></tr>
+<tr data-gpu="gb200"><td><code>sglang/agg-gb200-mtp/deploy.yaml</code></td><td>NVFP4</td><td>GB200</td><td>77.08%</td></tr>
+<tr data-gpu="h200"><td><code>sglang/agg-h200-mtp/deploy.yaml</code></td><td>FP8</td><td>H200</td><td>81.44%</td></tr>
+</tbody>
+</table>
+</div>
+
+Speculative decoding does not cost accuracy on this model. Removing it from the H200
+recipe and changing nothing else scores 80.24%, so MTP is 1.20 pp ahead there, and the
+B200 recipe shows the same direction.
+
 ## Source
 
 - [B200 SGLang deployment manifest](https://github.com/ai-dynamo/dynamo/blob/main/recipes/qwen3.6-35b-a3b/sglang/agg-b200-mtp/deploy.yaml)
