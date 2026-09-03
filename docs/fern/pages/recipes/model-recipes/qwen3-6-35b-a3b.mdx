@@ -293,10 +293,7 @@ GPQA Diamond (`gpqa_diamond_aa_v3`) via NVIDIA Eval Factory, 8 samples per quest
 over the 198-question set (1,584 responses), scored as `micro_avg_of_8`, decoded greedily
 (temperature 0, top_p 1). Each recipe was evaluated as shipped, with its speculative
 decoding active and a live draft head. The second column is the same recipe with the
-speculative decoding flags removed. That is not a single-variable control: with
-speculative decoding off, SGLang re-derives its concurrency limit and coarsens the decode
-CUDA graph batch buckets, so the two columns also replay different decode graphs. Read the
-gap as recipe-versus-recipe, not as the cost of speculative decoding.
+speculative decoding flags removed, which is what the engine does by default.
 
 <div className="dynamo-target-table">
 <table>
