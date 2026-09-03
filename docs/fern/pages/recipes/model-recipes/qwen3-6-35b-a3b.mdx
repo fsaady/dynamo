@@ -167,7 +167,7 @@ Qwen3.6 also accepts image input. Send an `image_url` content part:
 ```bash
 curl http://localhost:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"nvidia/Qwen3.6-35B-A3B-NVFP4","messages":[{"role":"user","content":[{"type":"text","text":"Describe this image."},{"type":"image_url","image_url":{"url":"https://raw.githubusercontent.com/ai-dynamo/dynamo/main/docs/assets/img/frontpage-banner.png"}}]}],"max_tokens":256}'
+  -d '{"model":"nvidia/Qwen3.6-35B-A3B-NVFP4","messages":[{"role":"user","content":[{"type":"text","text":"Describe this image."},{"type":"image_url","image_url":{"url":"https://raw.githubusercontent.com/ai-dynamo/dynamo/main/docs/fern/assets/img/frontpage-banner.png"}}]}],"max_tokens":1024}'
 ```
 
 </div>
@@ -177,7 +177,7 @@ curl http://localhost:8000/v1/chat/completions \
 ```bash
 curl http://localhost:8000/v1/chat/completions \
   -H 'Content-Type: application/json' \
-  -d '{"model":"Qwen/Qwen3.6-35B-A3B-FP8","messages":[{"role":"user","content":[{"type":"text","text":"Describe this image."},{"type":"image_url","image_url":{"url":"https://raw.githubusercontent.com/ai-dynamo/dynamo/main/docs/assets/img/frontpage-banner.png"}}]}],"max_tokens":256}'
+  -d '{"model":"Qwen/Qwen3.6-35B-A3B-FP8","messages":[{"role":"user","content":[{"type":"text","text":"Describe this image."},{"type":"image_url","image_url":{"url":"https://raw.githubusercontent.com/ai-dynamo/dynamo/main/docs/fern/assets/img/frontpage-banner.png"}}]}],"max_tokens":1024}'
 ```
 
 </div>
@@ -187,9 +187,8 @@ curl http://localhost:8000/v1/chat/completions \
 These results use [AIPerf](https://github.com/ai-dynamo/aiperf) 0.10.0 and the
 [`64k_400_90kv_agent_new_noschedule_short_15perc.jsonl`](https://github.com/ai-dynamo/dynamo/blob/main/recipes/kimi-k2.6/perf/traces/64k_400_90kv_agent_new_noschedule_short_15perc.jsonl)
 trace. The workload uses 64K input tokens, 400 output tokens, 90% KV reuse,
-concurrency 32, and 3,541 trace requests. The trace contains 130–131 requests
-expected to exceed the model context length and fail, depending on the selected
-recipe and generated output length.
+concurrency 32, and 3,541 trace requests. The trace contains 131 requests
+expected to exceed the model context length and fail.
 You can fetch the Git LFS-backed trace before running the benchmark:
 
 ```bash
@@ -289,10 +288,7 @@ Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurren
 
 ## Expected Accuracy
 
-GPQA Diamond (`gpqa_diamond_aa_v3`) via NVIDIA Eval Factory, 8 samples per question
-over the 198-question set (1,584 responses), scored as `micro_avg_of_8`, decoded greedily
-(temperature 0, top_p 1). Each recipe was evaluated as shipped; the second column is the
-same recipe without speculative decoding.
+GPQA Diamond (`gpqa_diamond_aa_v3`) via NVIDIA Eval Factory
 
 <div className="dynamo-target-table">
 <table>

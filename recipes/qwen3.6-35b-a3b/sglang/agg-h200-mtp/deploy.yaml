@@ -51,9 +51,6 @@ spec:
                 - --trust-remote-code
                 - --tp-size
                 - "1"
-                # H200 is SM90. trtllm_mha (used by the B200/GB200 recipes) is
-                # Blackwell-only, and the flashinfer_cutlass MoE runner crashes on this
-                # checkpoint's FP8 MoE here, so the MoE backend is left on auto.
                 - --attention-backend
                 - flashinfer
                 - --reasoning-parser
