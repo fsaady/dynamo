@@ -291,9 +291,8 @@ Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurren
 
 GPQA Diamond (`gpqa_diamond_aa_v3`) via NVIDIA Eval Factory, 8 samples per question
 over the 198-question set (1,584 responses), scored as `micro_avg_of_8`, decoded greedily
-(temperature 0, top_p 1). Each recipe was evaluated as shipped, with its speculative
-decoding active and a live draft head. The second column is the same recipe with the
-speculative decoding flags removed, which is what the engine does by default.
+(temperature 0, top_p 1). Each recipe was evaluated as shipped; the second column is the
+same recipe without speculative decoding.
 
 <div className="dynamo-target-table">
 <table>
