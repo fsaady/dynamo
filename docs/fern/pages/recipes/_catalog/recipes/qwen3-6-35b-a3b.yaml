@@ -8,7 +8,7 @@ provider: qwen
 model:
   name: Qwen3.6-35B-A3B
   hf_id: nvidia/Qwen3.6-35B-A3B-NVFP4 / Qwen/Qwen3.6-35B-A3B-FP8
-  precision: NVFP4 or FP8 weights + FP8 KV cache
+  precision: NVFP4 + FP8 KV (B200, GB200) / FP8 weights + BF16 KV (H200)
 status: validated
 artifacts:
   recipe_specific_images:
