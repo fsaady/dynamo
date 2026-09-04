@@ -37,7 +37,7 @@ targets:
     asset: recipes/qwen3.6-35b-a3b/sglang/agg-b200-mtp/deploy.yaml
   expected_performance:
     available: true
-    summary: 3096.77 output tok/s, 96.77 tok/s/user, and 3096.77 tok/s/GPU at concurrency 32 after a 32-request warmup
+    summary: 2988.50 output tok/s/GPU, 111.98 user tok/s P50, TTFT P50 286.90 ms at concurrency 32 (3,541-request agentic trace, simulated acc_len=3.3153 from SpeedBench coding)
 - id: sglang-gb200-agg-agentic
   recommended: false
   hardware:
@@ -57,7 +57,7 @@ targets:
     asset: recipes/qwen3.6-35b-a3b/sglang/agg-gb200-mtp/deploy.yaml
   expected_performance:
     available: true
-    summary: 3318.50 output tok/s, 103.70 tok/s/user, and 3318.50 tok/s/GPU at concurrency 32
+    summary: 3035.98 output tok/s/GPU, 111.47 user tok/s P50, TTFT P50 156.07 ms at concurrency 32 (3,541-request agentic trace, simulated acc_len=3.3153 from SpeedBench coding)
 - id: sglang-h200-agg-agentic
   recommended: false
   hardware:
@@ -77,6 +77,6 @@ targets:
     asset: recipes/qwen3.6-35b-a3b/sglang/agg-h200-mtp/deploy.yaml
   expected_performance:
     available: true
-    summary: 1332.03 output tok/s, 57.75 tok/s/user P50, and 1332.03 tok/s/GPU at concurrency 32
+    summary: 1332.03 output tok/s/GPU, 57.75 user tok/s P50, TTFT P50 360.31 ms at concurrency 32 (3,541-request agentic trace, simulated acc_len=3.3153 from SpeedBench coding)
 related_benchmarks: []
 maintainer: null
