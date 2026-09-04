@@ -5,4 +5,4 @@ SPDX-License-Identifier: Apache-2.0
 
 # Qwen3.6-35B-A3B Recipes
 
-See the [Qwen3.6-35B-A3B recipe documentation](https://docs.nvidia.com/dynamo/latest/recipes/qwen3-6-35b-a3b) for prerequisites, deployment instructions, smoke tests, benchmark commands, and measured performance.
+Use the [Qwen3.6-35B-A3B Fern recipe](../../docs/fern/pages/recipes/model-recipes/qwen3-6-35b-a3b.mdx) for prerequisites, deployment instructions, smoke tests, benchmark commands, and measured performance.
