@@ -271,7 +271,10 @@ inter-token latency or output throughput per user.
 
 ## Expected Performance
 
-Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurrency 32 with 3,541 trace requests:
+Measured with 64K input tokens, 400 output tokens, and 90% KV reuse at concurrency 32
+with 3,541 trace requests. MTP runs with simulated acceptance, `acc_len=3.3153` from
+SpeedBench coding, not acceptance measured on this agentic trace. The 32-request warmup
+is a separate pass and is not included in these figures:
 
 <div className="dynamo-variant-table-wrap">
 <table className="dynamo-variant-table">
