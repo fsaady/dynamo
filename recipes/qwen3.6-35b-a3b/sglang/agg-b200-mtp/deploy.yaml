@@ -55,6 +55,11 @@ spec:
                 - trtllm_mha
                 - --moe-runner-backend
                 - flashinfer_cutlass
+                # SGLang already resolves kv-cache-dtype auto to fp8_e4m3 for this
+                # NVFP4 checkpoint; set explicitly so a change to that default cannot
+                # silently move the published numbers.
+                - --kv-cache-dtype
+                - fp8_e4m3
                 - --reasoning-parser
                 - qwen3
                 - --tool-call-parser
