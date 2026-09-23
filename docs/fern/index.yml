@@ -785,6 +785,9 @@ navigation:
           - page: Overview
             path: pages/recipes/model-recipes/overview.mdx
             slug: browse
+          - page: Motif-3 NVFP4
+            path: pages/recipes/model-recipes/motif-3.mdx
+            slug: motif-3
           - page: K-EXAONE 2.0
             path: pages/recipes/model-recipes/k-exaone-2.mdx
             slug: k-exaone-2

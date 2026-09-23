@@ -10,6 +10,7 @@
 # active ones in recipes/<id>.yaml.
 schema_version: 1
 recipes:
+- motif-3
 - gemma4-31b
 - deepseek-v4-1-flash
 - glm-5-3-flash
