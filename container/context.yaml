@@ -75,9 +75,9 @@ dynamo:
 vllm:
   cuda13.0:
     base_image: nvcr.io/nvidia/cuda-dl-base
-    runtime_image: vllm/vllm-openai
+    runtime_image: ghcr.io/motiftechnologies/vllm
     base_image_tag: 25.11-cuda13.0-devel-ubuntu24.04
-    runtime_image_tag: v0.29.0-ubuntu2404
+    runtime_image_tag: v0.26.0-motif3
     # Baseline is vllm-openai's TRUE base, nvidia/cuda:13.0.2-base-ubuntu24.04
     # (Docker Hub), NOT a self-baseline of the third-party vllm/vllm-openai image.
     # vllm-openai is built FROM nvidia/cuda, so this attributes everything vLLM
